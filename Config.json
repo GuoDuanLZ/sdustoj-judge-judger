@@ -1,0 +1,87 @@
+{
+  "judgeAccount" : "judge001",
+
+  "globalRedisHost" : "192.168.210.134",
+  "globalRedisPort" : "6379",
+  "globalRedisPwd" : "hello,sdust_oj",
+
+  "localRedisHost" : "127.0.0.1",
+  "localRedisPort" : "6379",
+  "localRedisPwd" : "hello,sdust_oj",
+
+  "forward" : {
+    "ForwardDefaultOut" : "compile",
+    "ForwardDefaultBack" : "backMsg",
+    "ForwardDefaultLimit" : "run",
+    "maxMsgNum" : "100"
+  },
+
+  "compiler" : {
+    "CompileDefaultIn" : "compile",
+    "CompileDefaultOut" : "run",
+    "CompileDefaultRet" : "backMsg",
+    "0" : {
+      "cmd" : "/usr/bin/gcc gcc Main.c -O -o a.out",
+      "exefile" : "a.out",
+      "codefile" : "Main.c",
+      "outfile" : "a.out"
+    },
+    "1" : {
+      "cmd" : "/usr/bin/g++ g++ Main.cpp -std=c++11 -O -o a.out",
+      "exefile" : "a.out",
+      "codefile" : "Main.cpp",
+      "outfile" : "a.out"
+    },
+    "2" : {
+      "cmd" : "/usr/bin/javac javac Main.java",
+      "exefile" : "Main",
+      "codefile" : "Main.java",
+      "outfile" : "Main.class"
+    },
+    "3" : {
+      "cmd" : "NULL",
+      "exefile" : "Main.py",
+      "codefile" : "Main.py",
+      "outfile" : "Main.py"
+    }
+  },
+  "run" :{
+    "RunDefaultIn" : "run",
+    "RunDefaultOut" : "test",
+    "RunDefaultRet" : "backMsg",
+    "0" : {
+      "cmd" : "a.out a.out",
+      "ltype" : "0"
+    },
+    "1" : {
+      "cmd" : "a.out a.out",
+      "ltype" : "1"
+    },
+    "2" : {
+      "cmd" : "/usr/bin/java java Main",
+      "ltype" : "3"
+    },
+    "3" : {
+      "cmd" : "/usr/bin/python3 python3 Main.py",
+      "ltype" : "6"
+    }
+  },
+  "test" :{
+    "TestDefaultIn" : "test",
+    "TestDefaultOut" : "backMsg"
+  },
+  "backMsg" :{
+    "BackMsgDefaultIn" : "backMsg",
+    "web_address" : "192.168.210.134:8000"
+  },
+  "update" :{
+   "UpdateDefaultIn" : "update",
+   "UpdateDefaultOut" : "backMsg",
+   "DBHost" 			: 	"192.168.210.134",
+   "DBPort" 			: 	27017,
+   "authentication_source" 	: 	"judgeDB",
+   "db" 				: 	"judgeDB",
+   "username" 			: 	"sdustoj",
+   "password" 			: 	"sdust"
+  }
+}
