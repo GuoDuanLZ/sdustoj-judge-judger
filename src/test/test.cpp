@@ -56,7 +56,7 @@ int main()
   beginPath = util->getCurPath();
   thisPID   = util->intToString((int)getpid());
   thisPgm   = "T(" + thisPID + ")";
-  LOG->setLogName("../log/JudgeLog");
+  LOG->setLogName(beginPath + "/../log/JudgeLog");
   LOG->setPgName(thisPgm);
   LOG->note("Active Success");
 
@@ -77,6 +77,7 @@ int main()
 
 	Json::Reader reader;
   Json::Value root;
+  Json::Value temp;
   Json::Value j_ret;
 	list<string> keys;
 	keys.push_back(defaultIn);
@@ -91,24 +92,28 @@ int main()
       continue;
     }
 		LOG->note("received sid("+ root["sid"].asString() +")");
-		string path = beginPath + "/../userSubmition/" + root["sid"].asString();
+		string path;
+    if(root["ttype"].asString() != "normal"){
+      path = beginPath + "/../SPJ/" + root["mid"].asString() + "/" + root["pid"].asString();
+      pComparator->setIsSPJ(true);
+      temp = testConfig[root["ttype"].asString()];
+      pComparator->setSPJCmd(temp["cmd"].asString());
+LOG->note(temp["cmd"].asString());
+    }
+    else{
+      path = beginPath + "/../userSubmition/" + root["sid"].asString();
+      pComparator->setIsSPJ(false);
+    }
+    string tempPath = beginPath + "/../stdData/" + root["mid"].asString();
+    pComparator->setStdInputName(tempPath + "/in/in_" + root["tid"].asString());
+    pComparator->setStdOutputName(tempPath + "/out/out_" + root["tid"].asString());
+    pComparator->setUserOutputName(beginPath + "/../userSubmition/" + root["sid"].asString() +"/pout_" + root["tid"].asString());
+
     //mkdir(path.c_str(), 0777);
     if(chdir(path.c_str()) == -1){
       LOG->note("chdir error");
       return 0;
     }
-
-    string tempPath = beginPath + "/../stdData/" + root["mid"].asString();
-    if(root["ttype"].asString() != "normal"){
-      pComparator->setIsSPJ(true);
-      pComparator->setSPJPath(root["ttype"].asString());
-    }
-    else{
-      pComparator->setIsSPJ(false);
-    }
-    pComparator->setStdInputName(tempPath + "/in/in_" + root["tid"].asString());
-    pComparator->setStdOutputName(tempPath + "/out/out_" + root["tid"].asString());
-    pComparator->setUserOutputName("pout_" + root["tid"].asString());
 
     int res = pComparator->compare();
 		string result;

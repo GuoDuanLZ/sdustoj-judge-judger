@@ -1,4 +1,5 @@
 #include "compiler.h"
+#include "filterkey.h"
 
 string localRedisHost;//本地redis主机
 string localRedisPort;//本地redis端口
@@ -76,6 +77,7 @@ int main(){
   }
 
   Compiler *pCompiler = new Compiler();
+  FilterKey *pFilter = new FilterKey();
 
   Json::Reader reader;
   Json::Value root;
@@ -98,12 +100,32 @@ int main(){
     }
     LOG->note("received sid("+ root["sid"].asString() +")");
 
+    j_ret["type"] = "result";
+    j_ret["sid"]  = root["sid"].asString();
+
+    if(!pFilter->filter(root["code"].asString(), root["InvalidWord"].asString())){
+      j_ret["ret"]  = "IW";
+      j_ret["clen"] = util->intToString(root["code"].asString().length());
+      j_ret["msg"]  = "Invalid Word: " + pFilter->getInvalidWord();
+      pLocalRedis->setMsg(defaultBack, j_ret.toStyledString());
+      LOG->note("sid(" + root["sid"].asString() + ") return 'IW'");
+      continue;
+    }
+
     string path = beginPath + "/../userSubmition/" + root["sid"].asString();
+
+    if(root["sid"].asString() == "SPJ"){
+      path = beginPath + "/../SPJ/" + root["mid"].asString();
+      mkdir(path.c_str(), 0777);
+      path += "/" + root["pid"].asString();
+    }
+
     mkdir(path.c_str(), 0777);
     if(chdir(path.c_str()) == -1){
       LOG->note("chdir error");
       return 0;
     }
+
     temp = compilerConfig[root["eid"].asString()];
     string srcFilePath = path + "/" + temp["codefile"].asString();
 		ofstream outCode(srcFilePath.c_str(), ios::out);
@@ -126,8 +148,20 @@ int main(){
       LOG->note("sid(" + root["sid"].asString() + ") compile finished");
       pLocalRedis->setMsg(defaultBack, j_sta.toStyledString());
     }
-    j_ret["type"] = "result";
-		j_ret["sid"]  = root["sid"].asString();
+    if(root["sid"].asString() == "SPJ"){
+      if(ret == COMPILE_ACCEPT){
+        j_ret["ret"]  = "success";
+        j_ret["msg"] = "compile success";
+      }
+      else{
+        j_ret["ret"]  = "failed";
+        j_ret["msg"]  = util->loadAllFromFile(pCompiler->getErrorFileName(), -1);
+      }
+      j_ret["clen"] = util->intToString(root["code"].asString().length());
+      pLocalRedis->setMsg(defaultBack, j_ret.toStyledString());
+      LOG->note("sid(" + root["sid"].asString() + ") return");
+      continue;
+    }
 		j_arr         = root["tid"];
     int dataNum = j_arr.size();
     switch(ret){

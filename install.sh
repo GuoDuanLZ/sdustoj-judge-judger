@@ -3,6 +3,7 @@ mkdir log
 mkdir lib
 mkdir stdData
 mkdir userSubmition
+mkdir SPJ
 
 make
 make clean

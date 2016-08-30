@@ -68,7 +68,19 @@
   },
   "test" :{
     "TestDefaultIn" : "test",
-    "TestDefaultOut" : "backMsg"
+    "TestDefaultOut" : "backMsg",
+    "0" : {
+      "cmd" : "a.out a.out"
+    },
+    "1" : {
+      "cmd" : "a.out a.out"
+    },
+    "2" : {
+      "cmd" : "/usr/bin/java java Main"
+    },
+    "3" : {
+      "cmd" : "/usr/bin/python3 python3 Main.py"      
+    }
   },
   "backMsg" :{
     "BackMsgDefaultIn" : "backMsg",

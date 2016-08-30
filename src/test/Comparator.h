@@ -14,13 +14,13 @@ public:
 	void setStdInputName(string stdInputName);
 	void setStdOutputName(string stdOutputName);
 	void setUserOutputName(string userOutputName);
-	void setSPJPath(string spjPath);
+	void setSPJCmd(string cmd);
 	void setIsSPJ(bool isspj);
 
 	string getStdInputName();
 	string getStdOutputName();
 	string getUserOutputName();
-	string getSPJPath();
+	string getSPJCmd();
 	bool getIsSPJ();
 
 	int compare();
@@ -31,7 +31,7 @@ private:
 	string stdInputName;
 	string stdOutputName;
 	string userOutputName;
-	string spjPath;
+	string spjCmd;
 
 	bool isspj;
 };

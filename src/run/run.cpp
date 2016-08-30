@@ -2,6 +2,20 @@
 #include "../../include/Redis.h"
 #include "../../include/log.h"
 
+#include "okcalls.h"
+
+#ifdef __i386
+#define REG_SYSCALL orig_eax
+#define REG_RET eax
+#define REG_ARG0 ebx
+#define REG_ARG1 ecx
+#else
+#define REG_SYSCALL orig_rax
+#define REG_RET rax
+#define REG_ARG0 rdi
+#define REG_ARG1 rsi
+#endif
+
 #define BUFFER_SIZE 512
 
 string localRedisHost;//本地redis主机
@@ -23,6 +37,8 @@ string outputFileName;//程序输出文件名
 string fileName;//运行命令文件名
 
 Json::Value runConfig;
+
+int languageType;
 
 bool Config(string path){
   ifstream in(path.c_str(), ios::in);
@@ -56,6 +72,71 @@ bool Config(string path){
   IF_NULL_STR((defaultBack = runConfig["RunDefaultRet"].asString()));
 
 	return true;
+}
+
+int call_counter[512];
+
+void init_syscalls_limits(int lang)
+{
+    int i;
+    memset(call_counter, 0, sizeof(call_counter));
+		if (lang <= LT_CPP)   // C & C++
+    {
+        for (i = 0; LANG_CC[i]; i++)
+        {
+            call_counter[LANG_CV[i]] = LANG_CC[i];
+        }
+    }
+    //else if (lang == LT_PASCAL)     // Pascal
+    //{
+    //     for (i = 0; LANG_PC[i]; i++)
+    //         call_counter[LANG_PV[i]] = LANG_PC[i];
+    //}
+    else if (lang == LT_JAVA)     // Java
+    {
+        for (i = 0; LANG_JC[i]; i++)
+            call_counter[LANG_JV[i]] = LANG_JC[i];
+    }
+    //else if (lang == LT_RUBY)     // Ruby
+    //{
+    //     for (i = 0; LANG_RC[i]; i++)
+    //         call_counter[LANG_RV[i]] = LANG_RC[i];
+    //}
+    //else if (lang == LT_BASH)     // Bash
+    //{
+    //     for (i = 0; LANG_BC[i]; i++)
+    //         call_counter[LANG_BV[i]] = LANG_BC[i];
+    //}
+    else if (lang == LT_PYTHON)    // Python
+    {
+        for (i = 0; LANG_YC[i]; i++)
+            call_counter[LANG_YV[i]] = LANG_YC[i];
+    }
+    //else if (lang == LT_PHP)    // php
+    //{
+    //     for (i = 0; LANG_PHC[i]; i++)
+    //         call_counter[LANG_PHV[i]] = LANG_PHC[i];
+    //}
+    //else if (lang == 8)    // perl
+    //{
+    //     for (i = 0; LANG_PLC[i]; i++)
+    //         call_counter[LANG_PLV[i]] = LANG_PLC[i];
+    //}
+    //else if (lang == LT_MONOCS)    // mono c#
+    //{
+    //     for (i = 0; LANG_CSC[i]; i++)
+    //         call_counter[LANG_CSV[i]] = LANG_CSC[i];
+    // }
+    // else if (lang == LT_OBJC)  //objective c
+    // {
+    //     for (i = 0; LANG_OC[i]; i++)
+    //         call_counter[LANG_OV[i]] = LANG_OC[i];
+    // }
+    // else if (lang == LT_FBASIC)  //free basic
+    // {
+    //     for (i = 0; LANG_BASICC[i]; i++)
+    //         call_counter[LANG_BASICV[i]] = LANG_BASICC[i];
+    // }
 }
 
 int main()
@@ -112,6 +193,14 @@ int main()
 		inputFileName 	= beginPath + "/../stdData/" + root["mid"].asString() + "/in/" + "in_" + root["tid"].asString();
 		outputFileName 	= "pout_" + root["tid"].asString();
 
+    temp = runConfig[root["eid"].asString()];
+		if(temp["ltype"].asString() == ""){
+      LOG->note("unkonw ltype using LT_CPP as default");
+			languageType = LT_CPP;
+		}else{
+			languageType = util->stringToInt(temp["ltype"].asString());
+		}
+
 		int timeLimit 	= util->stringToInt(root["tl"].asString());//ms
 		int memoryLimit = util->stringToInt(root["ml"].asString());//KB
 		int fsizeLimit 	= util->stringToInt(root["ol"].asString());//KB
@@ -131,6 +220,8 @@ int main()
 		time_limit.rlim_cur 	= timeLimit / 1000;
 		time_limit.rlim_max 	= timeLimit / 1000 + 1;
 		fsize_limit.rlim_cur 	= fsize_limit.rlim_max = fsizeLimit;
+
+    init_syscalls_limits(languageType);
 
 		if((rpid = fork()) < 0){
 			LOG->note("sid("+ root["sid"].asString() + ") fork error");
@@ -155,6 +246,7 @@ int main()
 			exit(0);
 		}
 		else{
+      int sub = 0;
 			struct timeval startv, nowv;
 			gettimeofday(&startv, NULL);
 			while(1){
@@ -233,6 +325,24 @@ int main()
           waitpid(rpid, &runStatus, 0);
 					break;
 				}
+
+        // check the system calls
+				ptrace(PTRACE_GETREGS, rpid, NULL, &reg);
+
+				if (call_counter[reg.REG_SYSCALL] == 0) {
+					char cerror[BUFFER_SIZE];
+					sprintf(cerror,"[ERROR] A Not allowed system call: sid:%s callid:%llu\n",
+							root["sid"].asString().c_str(), reg.REG_SYSCALL);
+					result = "RE";
+          retMsg = cerror;
+					ptrace(PTRACE_KILL, rpid, NULL, NULL);
+          waitpid(rpid, &runStatus, 0);
+					break;
+				} else {
+					if (sub == 1)
+						call_counter[reg.REG_SYSCALL]--;
+				}
+				sub = 1 - sub;
 
 				if(memoryUsed / 1024 > memoryLimit){
 					result = "MLE";

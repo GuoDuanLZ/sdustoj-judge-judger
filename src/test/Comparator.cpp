@@ -2,7 +2,7 @@
 
 Comparator::Comparator(){
 	isspj = false;
-	spjPath = "";
+	spjCmd = "";
 }
 
 Comparator::~Comparator(){
@@ -21,8 +21,8 @@ void Comparator::setUserOutputName(string userOutputName){
     this->userOutputName = userOutputName;
 }
 
-void Comparator::setSPJPath(string spjPath){
-	this->spjPath = spjPath;
+void Comparator::setSPJCmd(string cmd){
+	this->spjCmd = cmd;
 }
 
 void Comparator::setIsSPJ(bool isSpj){
@@ -41,8 +41,8 @@ string Comparator::getUserOutputName(){
     return this->userOutputName;
 }
 
-string Comparator::getSPJPath(){
-	return this->spjPath;
+string Comparator::getSPJCmd(){
+	return this->spjCmd;
 }
 
 bool Comparator::getIsSPJ(){
@@ -58,24 +58,56 @@ int Comparator::compare(){
         //SPJ should have stdOutput too!!!
         int tpid;
         int testStatus;
+				struct rlimit time_limit;
+				time_limit.rlim_cur 	= 5;
+				time_limit.rlim_max 	= 6;
         if((tpid = fork()) == 0){
-            int ret = execl(spjPath.c_str(), spjPath.c_str(), stdInputName.c_str(), stdOutputName.c_str(), userOutputName.c_str(), NULL);
-            exit(ret);
+					setrlimit(RLIMIT_CPU, &time_limit);
+					vector<string> parameters = util->split(spjCmd, ' ');
+					string fileName = parameters[0];
+					parameters.erase(parameters.begin());
+					parameters.push_back(stdInputName);
+					parameters.push_back(stdOutputName);
+					parameters.push_back(userOutputName);
+					char** argv = nullptr;
+					util->transformCmd(parameters, argv);
+					int ret = execv(fileName.c_str(), argv);
+          exit(ret);
         }
         else{
-            waitpid(tpid, &testStatus, 0);
-            if(WIFEXITED(testStatus)){
-                int ret = WEXITSTATUS(testStatus);
-                if(ret == 255){
-                    return -1;
-                }
-                else{
-                    return ret;
-                }
-            }
-            else{
-                return -1;
-            }
+					struct timeval startv, nowv;
+					gettimeofday(&startv, NULL);
+					while(1){
+							waitpid(tpid, &testStatus, WNOHANG);
+							usleep(5000);
+							gettimeofday(&nowv, NULL);
+							int absTimeUsed = nowv.tv_sec - startv.tv_sec;
+							if(absTimeUsed > 5){//5s limit
+									ptrace(PTRACE_KILL, tpid, NULL, NULL);
+									waitpid(tpid, &testStatus, WNOHANG);
+									#ifdef DEBUG
+									LOG->note("SPJ TLE error", true);
+									#endif
+									return RESULT_WA;
+							}
+							if(WIFEXITED(testStatus)){
+									int ret = WEXITSTATUS(testStatus);
+									if(ret == 255){
+											waitpid(tpid, &testStatus, WNOHANG);
+											#ifdef DEBUG
+											LOG->note("SPJ error");
+											#endif
+											return RESULT_WA;
+									}
+									else{
+											waitpid(tpid, &testStatus, WNOHANG);
+											#ifdef DEBUG
+											LOG->note("SPJ AC");
+											#endif
+											return RESULT_AC;
+									}
+							}
+					}
         }
     }
 }
